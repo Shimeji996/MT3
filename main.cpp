@@ -22,7 +22,6 @@ struct Sphere
 
 Vector3 Add(const Vector3& v1, const Vector3& v2)
 {
-
 	Vector3 result;
 
 	result.x = v1.x + v2.x;
@@ -30,12 +29,10 @@ Vector3 Add(const Vector3& v1, const Vector3& v2)
 	result.z = v1.z + v2.z;
 
 	return result;
-
 }
 
 Vector3 Subtract(const Vector3& v1, const Vector3& v2)
 {
-
 	Vector3 result;
 
 	result.x = v1.x - v2.x;
@@ -48,13 +45,11 @@ Vector3 Subtract(const Vector3& v1, const Vector3& v2)
 
 float Dot(const Vector3& v1, const Vector3& v2)
 {
-
 	float result;
 
 	result = (v1.x * v2.x) + (v1.y * v2.y) + (v1.z * v2.z);
 
 	return result;
-
 }
 
 Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2)
@@ -492,16 +487,14 @@ void DrawSphere(const Sphere& sphere, const Matrix4x4& viewProjectionMatrix, con
 	const float kLonEvery = 2.0f * float(std::numbers::pi) / float(kSubdivison);
 	const float kLatEvery = float(std::numbers::pi) / float(kSubdivison);
 
-	// 緯度の方向に分割
 	for (uint32_t latIndex = 0; latIndex < kSubdivison; latIndex++)
 	{
 		float lat = float(-std::numbers::pi) / 2.0f + kLatEvery * latIndex;
-		// 軽度の方向に分割
+		
 		for (uint32_t lonIndex = 0; lonIndex < kSubdivison; lonIndex++)
 		{
 			float lon = lonIndex * kLonEvery;
 
-			// ワールド座標系でのa, b, cを求める
 			Vector3 a, b, c;
 			a = { sphere.radius * std::cosf(lat) * std::cosf(lon),sphere.radius * std::sinf(lat), sphere.radius * std::cosf(lat) * std::sinf(lon) };
 			a = Add(a, sphere.center);
@@ -510,7 +503,6 @@ void DrawSphere(const Sphere& sphere, const Matrix4x4& viewProjectionMatrix, con
 			c = { sphere.radius * std::cosf(lat) * cosf(lon + kLonEvery), sphere.radius * std::sinf(lat), sphere.radius * std::cosf(lat) * std::sinf(lon + kLonEvery) };
 			c = Add(c, sphere.center);
 
-			// a, b, c をスクリーン座標系に変換
 			a = Transform(a, viewProjectionMatrix);
 			a = Transform(a, viewPortMatrix);
 			b = Transform(b, viewProjectionMatrix);
@@ -518,7 +510,6 @@ void DrawSphere(const Sphere& sphere, const Matrix4x4& viewProjectionMatrix, con
 			c = Transform(c, viewProjectionMatrix);
 			c = Transform(c, viewPortMatrix);
 
-			// 線を引く
 			Novice::DrawLine(int(a.x), int(a.y), int(b.x), int(b.y), color);
 			Novice::DrawLine(int(a.x), int(a.y), int(c.x), int(c.y), color);
 
