@@ -19,6 +19,11 @@ struct Sphere {
 	float radius;
 };
 
+struct Plane {
+	Vector3 normal;
+	float distance;
+};
+
 struct Line {
 	Vector3 origin;
 	Vector3 diff;
@@ -641,14 +646,41 @@ static Vector3 ClosestPoint(const Vector3& point, const Segment& segment) {
 	return result;
 }
 
-static bool IsCollision(const Sphere& s1, const Sphere& s2) {
-	float distance = Length(Subtract(s2.center, s1.center));
+static bool IsCollision(const Sphere& s1, const Plane& plane) {
+	float k = std::abs(Dot(plane.normal, s1.center) - plane.distance);
 
-	if (distance <= s1.radius + s2.radius) {
-		return	true;
+	if (s1.radius > k) {
+		return true;
+	}
+	return false;
+}
+
+static Vector3 Perpendicular(const Vector3& vector) {
+	if (vector.x != 0.0f || vector.y != 0.0f) {
+		return { -vector.y, vector.x, 0.0f };
+	}
+	return { 0.0f, -vector.z, vector.y };
+}
+
+static void DrawPlane(const Plane& plane, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, uint32_t color) {
+	Vector3 center = Multiply(plane.distance, plane.normal);
+	Vector3 perpendiculars[4];
+	perpendiculars[0] = Normalize(Perpendicular(plane.normal));
+	perpendiculars[1] = { -perpendiculars[0].x, -perpendiculars[0].y, -perpendiculars[0].z };
+	perpendiculars[2] = Cross(plane.normal, perpendiculars[0]);
+	perpendiculars[3] = { -perpendiculars[2].x, -perpendiculars[2].y, -perpendiculars[2].z };
+
+	Vector3 points[4];
+	for (uint32_t index = 0; index < 4; ++index) {
+		Vector3 extend = Multiply(2.0f, perpendiculars[index]);
+		Vector3 point = Add(center, extend);
+		points[index] = TransformCoord(TransformCoord(point, viewProjectionMatrix), viewportMatrix);
 	}
 
-	return false;
+	Novice::DrawLine(int(points[0].x), int(points[0].y), int(points[3].x), int(points[3].y), color);
+	Novice::DrawLine(int(points[3].x), int(points[3].y), int(points[1].x), int(points[1].y), color);
+	Novice::DrawLine(int(points[1].x), int(points[1].y), int(points[2].x), int(points[2].y), color);
+	Novice::DrawLine(int(points[2].x), int(points[2].y), int(points[0].x), int(points[0].y), color);
 
 }
 
@@ -665,14 +697,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Vector3 cameraTranslate{ 0.0f, 1.9f, -6.49f };
 	Vector3 cameraRotate{ 0.26f, 0.0f, 0.0f };
 
-	Sphere sphere1{
+	Sphere sphere{
 		{0.0f, 0.0f, 0.0f},
 		1.0f
 	};
 
-	Sphere sphere2{
-		{0.0f, 0.0f, 0.0f},
-		0.5f
+	Plane plane{
+		{1.0f, 1.0f, 1.0f},
+		1.0f
 	};
 
 	uint32_t color1 = WHITE;
@@ -698,7 +730,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 		Matrix4x4 viewportMatrix = MakeViewPortMatrix(0, 0, float(kWindowWidth), float(kWindowHeight), 0.0f, 1.0f);
 
-		if (IsCollision(sphere1, sphere2)) {
+		if (IsCollision(sphere, plane)) {
 			color1 = RED;
 		}
 		else {
@@ -713,18 +745,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓描画処理ここから
 		///
 
-		DrawShere(sphere1, worldViewProjectionMatrix, viewportMatrix, color1);
-		DrawShere(sphere2, worldViewProjectionMatrix, viewportMatrix, color2);
+		DrawShere(sphere, worldViewProjectionMatrix, viewportMatrix, color1);
+		DrawPlane(plane, worldViewProjectionMatrix, viewportMatrix, color2);
+
 
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
 
 		ImGui::Begin("Debug");
-		ImGui::DragFloat3("sphere1", &sphere1.center.x, 0.1f, -1.0f, 1.0f);
-		ImGui::DragFloat("sphere1", &sphere1.radius, 0.1f, 0.0f, 1.0f);
-		ImGui::DragFloat3("sphere2", &sphere2.center.x, 0.1f, -1.0f, 1.0f);
-		ImGui::DragFloat("sphere2", &sphere2.radius, 0.1f, 0.0f, 1.0f);
-
+		ImGui::DragFloat3("cameraTRa", &cameraTranslate.x, 0.1f, -50.0f, 50.0f);
+		ImGui::DragFloat3("cameraRot", &cameraRotate.x, 0.1f, -50.0f, 50.0f);
+		ImGui::DragFloat3("sphereCenter", &sphere.center.x, 0.1f, -1.0f, 1.0f);
+		ImGui::DragFloat("sphereRadius", &sphere.radius, 0.1f, -1.0f, 1.0f);
+		ImGui::DragFloat("planeDistance", &plane.distance, 0.1f, -1.0f, 5.0f);
+		ImGui::DragFloat3("planeNormal", &plane.normal.x, 0.1f, -1.0f, 1.0f);
+		plane.normal = Normalize(plane.normal);
 		ImGui::End();
+
 
 		///
 		/// ↑描画処理ここまで
