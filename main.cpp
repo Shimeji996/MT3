@@ -646,6 +646,17 @@ static Vector3 ClosestPoint(const Vector3& point, const Segment& segment) {
 	return result;
 }
 
+static bool IsCollision(const Sphere& s1, const Sphere& s2) {
+	float distance = Length(Subtract(s2.center, s1.center));
+
+	if (distance <= s1.radius + s2.radius) {
+		return	true;
+	}
+
+	return false;
+
+}
+
 static bool IsCollision(const Sphere& s1, const Plane& plane) {
 	float k = std::abs(Dot(plane.normal, s1.center) - plane.distance);
 
@@ -653,6 +664,44 @@ static bool IsCollision(const Sphere& s1, const Plane& plane) {
 		return true;
 	}
 	return false;
+}
+
+static bool IsCollision(const Segment& line, const Plane& plane) {
+	float dot = Dot(plane.normal, line.diff);
+
+	if (dot == 0.0f) {
+		return false;
+	}
+
+	float t = (plane.distance - Dot(line.origin, plane.normal)) / dot;
+
+	if (0.0f < t && t < 1.0f) {
+		return true;
+	}
+	return false;
+}
+static bool IsCollision(const Ray& line, const Plane& plane) {
+	float dot = Dot(plane.normal, line.diff);
+
+	if (dot == 0.0f) {
+		return false;
+	}
+
+	float t = (plane.distance - Dot(line.origin, plane.normal)) / dot;
+
+	if (0.0f < t) {
+		return true;
+	}
+	return false;
+}
+static bool IsCollision(const Line& line, const Plane& plane) {
+	float dot = Dot(plane.normal, line.diff);
+
+	if (dot == 0.0f) {
+		return false;
+	}
+
+	return true;
 }
 
 static Vector3 Perpendicular(const Vector3& vector) {
@@ -684,6 +733,30 @@ static void DrawPlane(const Plane& plane, const Matrix4x4& viewProjectionMatrix,
 
 }
 
+static void DrawLine(const Segment& seg, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, uint32_t color) {
+	Vector3 start = TransformCoord(seg.origin, viewProjectionMatrix);
+	Vector3 screenStart = TransformCoord(start, viewportMatrix);
+	Vector3 end = TransformCoord(Add(seg.origin, seg.diff), viewProjectionMatrix);
+	Vector3 screenEnd = TransformCoord(end, viewportMatrix);
+	Novice::DrawLine(int(screenStart.x), int(screenStart.y), int(screenEnd.x), int(screenEnd.y), color);
+}
+
+static void DrawLine(const Ray& ray, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, uint32_t color) {
+	Vector3 start = TransformCoord(ray.origin, viewProjectionMatrix);
+	Vector3 screenStart = TransformCoord(start, viewportMatrix);
+	Vector3 end = TransformCoord(Add(ray.origin, ray.diff), viewProjectionMatrix);
+	Vector3 screenEnd = TransformCoord(end, viewportMatrix);
+	Novice::DrawLine(int(screenStart.x), int(screenStart.y), int(screenEnd.x), int(screenEnd.y), color);
+}
+
+static void DrawLine(const Line& line, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, uint32_t color) {
+	Vector3 start = TransformCoord(line.origin, viewProjectionMatrix);
+	Vector3 screenStart = TransformCoord(start, viewportMatrix);
+	Vector3 end = TransformCoord(Add(line.origin, line.diff), viewProjectionMatrix);
+	Vector3 screenEnd = TransformCoord(end, viewportMatrix);
+	Novice::DrawLine(int(screenStart.x), int(screenStart.y), int(screenEnd.x), int(screenEnd.y), color);
+}
+
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
@@ -697,9 +770,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Vector3 cameraTranslate{ 0.0f, 1.9f, -6.49f };
 	Vector3 cameraRotate{ 0.26f, 0.0f, 0.0f };
 
-	Sphere sphere{
+	Segment segment{
 		{0.0f, 0.0f, 0.0f},
-		1.0f
+		{1.0f, 1.0f, 1.0f}
 	};
 
 	Plane plane{
@@ -723,6 +796,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓更新処理ここから
 		///
 
+		//諸々の変換
 		Matrix4x4 worldMatrix = MakeAffineMatrix({ 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f });
 		Matrix4x4 cameraMatrix = MakeAffineMatrix({ 1.0f, 1.0f, 1.0f }, cameraRotate, cameraTranslate);
 		Matrix4x4 viewMatrix = Inverse(cameraMatrix);
@@ -730,7 +804,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 		Matrix4x4 viewportMatrix = MakeViewPortMatrix(0, 0, float(kWindowWidth), float(kWindowHeight), 0.0f, 1.0f);
 
-		if (IsCollision(sphere, plane)) {
+		//当たり判定
+		if (IsCollision(segment, plane)) {
 			color1 = RED;
 		}
 		else {
@@ -745,17 +820,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓描画処理ここから
 		///
 
-		DrawShere(sphere, worldViewProjectionMatrix, viewportMatrix, color1);
+		DrawLine(segment, worldViewProjectionMatrix, viewportMatrix, color1);
 		DrawPlane(plane, worldViewProjectionMatrix, viewportMatrix, color2);
-
 
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
 
 		ImGui::Begin("Debug");
 		ImGui::DragFloat3("cameraTRa", &cameraTranslate.x, 0.1f, -50.0f, 50.0f);
 		ImGui::DragFloat3("cameraRot", &cameraRotate.x, 0.1f, -50.0f, 50.0f);
-		ImGui::DragFloat3("sphereCenter", &sphere.center.x, 0.1f, -1.0f, 1.0f);
-		ImGui::DragFloat("sphereRadius", &sphere.radius, 0.1f, -1.0f, 1.0f);
+		ImGui::DragFloat3("segmentOrigin", &segment.origin.x, 0.1f, -1.0f, 1.0f);
+		ImGui::DragFloat3("segmentDiff", &segment.diff.x, 0.1f, -1.0f, 1.0f);
 		ImGui::DragFloat("planeDistance", &plane.distance, 0.1f, -1.0f, 5.0f);
 		ImGui::DragFloat3("planeNormal", &plane.normal.x, 0.1f, -1.0f, 1.0f);
 		plane.normal = Normalize(plane.normal);
